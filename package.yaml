@@ -10,12 +10,16 @@ extra-source-files:
 - README.md
 - LICENSE
 
-description:         Formatter for the Nytrix programmin language
+description:         Formatter for the Nytrix programming language
 
 dependencies:
 - base >= 4.7 && < 5
 - text
 - filepath
+- directory
+- megaparsec
+- prettyprinter
+- parser-combinators   # 👈 ADDED: provides chainl1, etc.
 
 ghc-options:
 - -Wall
@@ -26,7 +30,6 @@ ghc-options:
 - -Wpartial-fields
 - -Wredundant-constraints
 
-# Build only executables for faster compilation
 executables:
   nytrixf:
     main:                Main.hs
@@ -36,4 +39,3 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     - -O2
-  
