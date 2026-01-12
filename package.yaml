@@ -19,7 +19,9 @@ dependencies:
 - directory
 - megaparsec
 - prettyprinter
-- parser-combinators   # 👈 ADDED: provides chainl1, etc.
+- parser-combinators
+- aeson
+- bytestring
 
 ghc-options:
 - -Wall
@@ -31,7 +33,7 @@ ghc-options:
 - -Wredundant-constraints
 
 executables:
-  nytrixf:
+  nyf:
     main:                Main.hs
     source-dirs:         .
     ghc-options:

@@ -9,14 +9,13 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import Parser
 import Text.Megaparsec (parse, errorBundlePretty)
-
---- TODO Features [0/1]
--- [ ] Make it recursive
+import qualified Test
 
 main :: IO ()
 main = do
   args <- getArgs
   case args of
+    ["test"] -> Test.runAllTests
     [path] -> do
       isDir <- doesDirectoryExist path
       isFile <- doesFileExist path
@@ -33,6 +32,7 @@ main = do
       putStrLn "Usage:"
       putStrLn "  nyf <file>        Format <file>"
       putStrLn "  nyf <dir>         Recursively format all .ny files in <dir>"
+      putStrLn "  nyf test          Run all tests in tests/ directory"
       putStrLn ""
       exitFailure
 
@@ -41,7 +41,6 @@ processDirectory dir = do
   contents <- listDirectory dir
   let nyFiles = filter (\f -> takeExtension f == ".ny") contents
   mapM_ (processFile . (dir </>)) nyFiles
-
   subdirs <- filterM (\f -> doesDirectoryExist (dir </> f)) contents
   mapM_ (processDirectory . (dir </>)) subdirs
 
