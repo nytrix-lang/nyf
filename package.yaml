@@ -1,0 +1,39 @@
+name:                nyf
+version:             0.1.0.0
+github:              "laluxx/nyf"
+license:             MIT
+author:              "Laluxx"
+maintainer:          "lorenzoaddamo10@gmail.com"
+copyright:           "2026 Laluxx"
+
+extra-source-files:
+- README.md
+- LICENSE
+
+description:         Formatter for the Nytrix programmin language
+
+dependencies:
+- base >= 4.7 && < 5
+- text
+- filepath
+
+ghc-options:
+- -Wall
+- -Wcompat
+- -Widentities
+- -Wincomplete-record-updates
+- -Wincomplete-uni-patterns
+- -Wpartial-fields
+- -Wredundant-constraints
+
+# Build only executables for faster compilation
+executables:
+  nytrixf:
+    main:                Main.hs
+    source-dirs:         .
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -O2
+  
