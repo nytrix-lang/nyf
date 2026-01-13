@@ -97,7 +97,8 @@ identifier = try $ lexeme (p >>= check)
 
     -- Allow '-' and '>' separately so they can form '->'
     -- But NOT '<' which should only be an operator
-    isIdentChar c = isAlpha c || isDigit c || c `elem` ("_-?!$>/+*^~@#%" :: String)
+    -- Add ' for prime notation (e.g., x', List')
+    isIdentChar c = isAlpha c || isDigit c || c `elem` ("_-?!$>/+*^~@#%'" :: String)
     isOperatorChar c = c `elem` ("-+*/>!^~%" :: String)
 
     check x = if isKeyword x
@@ -128,7 +129,10 @@ integer = lexeme $ try hexadecimal <|> L.decimal
       L.hexadecimal
 
 float :: Parser Double
-float = lexeme $ try L.float <|> (fromIntegral <$> (L.decimal :: Parser Integer))
+float = lexeme L.float  -- Only parse actual floats, not integers
+
+-- float :: Parser Double
+-- float = lexeme $ try L.float <|> (fromIntegral <$> (L.decimal :: Parser Integer))
 
 stringLiteral :: Parser Text
 stringLiteral = lexeme $ T.pack <$> stringBody
@@ -211,7 +215,7 @@ compoundAssignOp = choice
   ]
 
 file :: Parser [Decl]
-file = sc *> many (topLevel <* sc) <* eof  -- Add 'sc' after each topLevel
+file = sc *> many (topLevel <* sc) <* eof
   where
     topLevel = choice
       [ try useAsDecl
@@ -219,12 +223,20 @@ file = sc *> many (topLevel <* sc) <* eof  -- Add 'sc' after each topLevel
       , try layoutDecl
       , try fnDecl
       , defError
+      , try stmtAsDecl  -- Add this line
       , exprOrAssignDecl
       ]
 
     defError = do
       try (symbol "def")
       fail "Cannot use 'def' in global scope. Use 'define' for global variables instead."
+
+    -- Convert statements to declarations at top level
+    stmtAsDecl = do
+      s <- stmt
+      case s of
+        ExprStmt e -> return $ ExprDecl e
+        _ -> return $ ExprDecl (Var "stmt")  -- Placeholder for other statement types
 
 useAsDecl :: Parser Decl
 useAsDecl = do
@@ -454,19 +466,33 @@ matchStmt :: Parser Stmt
 matchStmt = do
   symbol "match"
   test <- expr
-  symbol "{"
-  arms <- many matchArm
-  defaultCase <- optional $ do
-    symbol "else"
-    braces (many stmt)
-  symbol "}"
-  return $ MatchStmt test arms defaultCase
+  braces $ do
+    arms <- many matchArm
+    defaultCase <- optional defaultArm
+    return $ MatchStmt test arms defaultCase
   where
     matchArm = do
-      pattern <- expr
-      void $ optional (symbol ":")
-      conseq <- braces (many stmt)
-      return $ MatchArm pattern conseq
+      patterns <- manyTill pattern (try $ sc *> symbol "->")
+      conseq <- consequence
+      let pat = case patterns of
+                  [] -> error "match arm must have at least one pattern"
+                  [p] -> p
+                  ps -> TupleLit ps
+      return $ MatchArm pat conseq
+
+    pattern = sc *> term <* sc
+
+    consequence = choice
+      [ braces (many stmt)
+      , do
+          s <- stmt          -- Changed from 'expr' to 'stmt'
+          return [s]         -- Wrap in list
+      ]
+
+    defaultArm = do
+      choice [try (symbol "else"), try (symbol "otherwise")]
+      symbol "->"
+      consequence
 
 blockStmt :: Parser Stmt
 blockStmt = BlockStmt <$> braces (many stmt)
@@ -551,6 +577,7 @@ term = choice
   , try inferredMember
   , try asmExpr
   , try embedExpr
+  , try comptimeExpr
   , try lambdaExpr
   , try fnExpr
   , try (parens tupleOrExpr)
@@ -618,27 +645,50 @@ tupleOrExpr = do
   first <- optional expr
   case first of
     Nothing -> return $ TupleLit []
-    Just e -> do
-      rest <- many (symbol "," >> expr)
-      if null rest
-        then return e
-        else return $ TupleLit (e : rest)
+    Just e -> choice
+      [ try $ do
+          -- Comma-separated: (1, 2, 3) or (1,)
+          symbol ","
+          rest <- expr `sepEndBy` symbol ","
+          return $ TupleLit (e : rest)
+      , do
+          -- Space-separated or single expr: (1 2 3) or (1)
+          rest <- many (try $ sc *> notFollowedBy (char ')') *> expr)
+          if null rest
+            then return e  -- Single expr, not a tuple
+            else return $ TupleLit (e : rest)
+      ]
 
 dictOrSet :: Parser Expr
-dictOrSet = braces $ do
-  first <- optional expr
-  case first of
-    Nothing -> return $ SetLit []
-    Just e -> choice
-      [ do
-          symbol ":"
-          v <- expr
-          rest <- many (symbol "," >> dictPair)
-          return $ DictLit ((e, v) : rest)
-      , do
-          rest <- many (symbol "," >> expr)
-          return $ SetLit (e : rest)
-      ]
+dictOrSet = braces $ choice
+  [ try $ do
+      -- Empty dict: {:}
+      symbol ":"
+      return $ DictLit []
+  , do
+      first <- optional expr
+      case first of
+        Nothing -> return $ SetLit []  -- Empty set: {}
+        Just e -> choice
+          [ try $ do
+              -- Dictionary: {k: v, ...}
+              symbol ":"
+              v <- expr
+              rest <- many (try $ symbol "," >> dictPair)
+              return $ DictLit ((e, v) : rest)
+          , try $ do
+              -- Comma-separated set: {1, 2, 3}
+              symbol ","
+              rest <- expr `sepEndBy` symbol ","
+              return $ SetLit (e : rest)
+          , do
+              -- Space-separated set: {1 2 3}
+              rest <- many (try expr)
+              if null rest
+                then return $ SetLit [e]
+                else return $ SetLit (e : rest)
+          ]
+  ]
   where
     dictPair = do
       k <- expr
@@ -647,7 +697,19 @@ dictOrSet = braces $ do
       return (k, v)
 
 listLit :: Parser Expr
-listLit = ListLit <$> brackets (expr `sepBy` symbol ",")
+listLit = brackets $ do
+  first <- optional expr
+  case first of
+    Nothing -> return $ ListLit []
+    Just e -> choice
+      [ try $ do
+          symbol ","
+          rest <- expr `sepEndBy` symbol ","
+          return $ ListLit (e : rest)
+      , do
+          rest <- many (try expr)
+          return $ ListLit (e : rest)
+      ]
 
 postfix :: Expr -> Parser Expr
 postfix e = choice
