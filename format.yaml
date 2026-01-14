@@ -1,5 +1,5 @@
 
-### Nyf - CONFIGURATION
+            ### Nyf - FORMAT CONFIGURATION 
 
 ### INDENTATION
 
@@ -254,7 +254,6 @@ normalizeWhitespace: true         # Normalize multiple spaces to single space
 collapseAdjacentSpaces: true      # Multiple spaces → single space (where allowed)
 
 ###  STANDARD PRESETS 
-
 # You can pick one with ~nyf standard COMPACT~
 
 ####  COMPACT
@@ -276,3 +275,7 @@ collapseAdjacentSpaces: true      # Multiple spaces → single space (where allo
 ## alignComparisons: true
 ## alignFunctionArgs: true
 ## layoutFieldAlignment: true
+
+### TODO WEB menu [0/1]
+# - [ ] Write a web menu to configure this file interactively
+
