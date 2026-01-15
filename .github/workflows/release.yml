@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Stack
+      uses: haskell-actions/setup@v2
+      with:
+        enable-stack: true
+        stack-version: '2.9.3.1'
+    
+    - name: Build with Stack
+      run: |
+        stack update
+        stack build --test --no-run-tests
+        mkdir -p dist-release
+        
+        # Get the binary path (multiple ways to be safe)
+        BINARY_PATH=$(stack path --local-install-root)/bin/nyf
+        
+        if [ -f "$BINARY_PATH" ]; then
+          cp "$BINARY_PATH" dist-release/nyf-linux-x86_64
+          echo "✅ Binary copied: $BINARY_PATH"
+        else
+          # Try alternative method
+          stack install --local-bin-path dist-release/
+          mv dist-release/nyf dist-release/nyf-linux-x86_64 || true
+        fi
+    
+    - name: Test binary
+      run: |
+        chmod +x dist-release/nyf-linux-x86_64
+        ./dist-release/nyf-linux-x86_64 version
+        ./dist-release/nyf-linux-x86_64 --help
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          dist-release/nyf-linux-x86_64
