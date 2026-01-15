@@ -24,10 +24,11 @@ dependencies:
 - prettyprinter
 - parser-combinators
 - aeson
-- aeson-pretty
 - bytestring
 - process
 - bytestring
+- aeson-pretty
+
 ghc-options:
 - -Wall
 - -Wcompat
