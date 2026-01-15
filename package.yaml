@@ -11,7 +11,7 @@ extra-source-files:
 description:         Formatter for the Nytrix programming language
 
 data-files:
-- tests/**/*.ny
+- tests/**
 
 dependencies:
 - base >= 4.7 && < 5
@@ -38,11 +38,35 @@ ghc-options:
 - -Wpartial-fields
 - -Wredundant-constraints
 
+library:
+  source-dirs: src
+  exposed-modules:
+  - AST
+  - Cli
+  - Colors
+  - Debug
+  - Docs
+  - FormatConfig
+  - Formatter
+  - HelpSystem
+  - Parser
+  - Templates
+  - Test
+  - Ops.AstOps
+  - Ops.ConfigOps
+  - Ops.DocsOps
+  - Ops.FormatOps
+  - Ops.LintOps
+  - Ops.ProjectOps
+  - Ops.TestOps
+
 executables:
   nyf:
     main:                Main.hs
-    source-dirs:         .
+    source-dirs:         app
     ghc-options:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    dependencies:
+    - nyf
